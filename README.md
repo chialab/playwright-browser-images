@@ -1,6 +1,6 @@
 # Playwright browser images
 
-This repository automatically publishes Docker images to Docker Hub whenever a new version of [Playwright](https://playwright.dev/) is detected on npm.
+This repository automatically publishes Docker images to GitHub Container Registry whenever a new version of [Playwright](https://playwright.dev/) is detected on npm.
 For each browser (`chromium`, `firefox`, `webkit`), two tags are published: `<browser>-<version>` and `<browser>-latest`.
 
 The images are based on Alpine Linux and include only the browsers required to run Playwright, without additional dependencies.
