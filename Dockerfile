@@ -1,0 +1,6 @@
+FROM node:24-alpine
+
+ARG PLAYWRIGHT_VERSION
+ARG PLAYWRIGHT_BROWSER
+
+RUN npx -y "playwright@${PLAYWRIGHT_VERSION}" install "${PLAYWRIGHT_BROWSER}" --with-deps

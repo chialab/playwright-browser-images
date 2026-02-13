@@ -1,0 +1,77 @@
+name: Publish Playwright Browser Images
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: playwright-browser-images
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.check-version.outputs.version }}
+    steps:
+      - name: Check version to publish
+        id: check-version
+        shell: bash
+        run: |
+          version="$(curl -s https://registry.npmjs.org/playwright/latest | jq -r .version)"
+          response_code="$(curl -s -o /dev/null -w "%{http_code}" "https://hub.docker.com/v2/repositories/chialab/playwright-browser/tags/chromium-${version}/")"
+
+          if [[ "${response_code}" != "200" ]]; then
+            echo "version=${version}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: check
+    if: ${{ needs.check.outputs.version != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    env:
+      PLAYWRIGHT_VERSION: ${{ needs.check.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          build-args: |
+            PLAYWRIGHT_VERSION=${{ env.PLAYWRIGHT_VERSION }}
+            PLAYWRIGHT_BROWSER=${{ matrix.browser }}
+          tags: |
+            chialab/playwright-browser:${{ matrix.browser }}-${{ env.PLAYWRIGHT_VERSION }}
+            chialab/playwright-browser:${{ matrix.browser }}-latest
+            ghcr.io/chialab/playwright-browser:${{ matrix.browser }}-${{ env.PLAYWRIGHT_VERSION }}
+            ghcr.io/chialab/playwright-browser:${{ matrix.browser }}-latest
