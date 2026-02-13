@@ -41,6 +41,7 @@ ARG TZ=America/Los_Angeles
 
 ENV LANG=C.UTF-8
 ENV LC_ALL=C.UTF-8
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Copy the dependency list from builder
 COPY --from=builder /deps.txt /tmp/deps.txt
