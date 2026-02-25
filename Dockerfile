@@ -48,6 +48,7 @@ COPY --from=builder /deps.txt /tmp/deps.txt
 
 # Install ONLY the native dependencies Playwright needs
 RUN apt-get update \
+    && apt-get install zstd \
     && xargs apt-get install -y --no-install-recommends < /tmp/deps.txt \
     && rm -rf /var/lib/apt/lists/* /tmp/deps.txt
 
