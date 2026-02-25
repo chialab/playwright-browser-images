@@ -13,12 +13,17 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     outputs:
       version: ${{ steps.check-version.outputs.version }}
     steps:
       - name: Check version to publish
         id: check-version
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           version="$(curl -s https://registry.npmjs.org/playwright/latest | jq -r .version)"
           response_code="$(curl -s -o /dev/null -w "%{http_code}" \
