@@ -29,7 +29,7 @@ jobs:
         run: |
           version="$(curl -s https://registry.npmjs.org/playwright/latest | jq -r .version)"
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin
-          if docker manifest inspect "$IMAGE:${version}" >/dev/null 2>&1; then
+          if docker manifest inspect "$IMAGE:chromium-${version}" >/dev/null 2>&1; then
             echo "version=" >> "$GITHUB_OUTPUT"
           else
             echo "version=${version}" >> "$GITHUB_OUTPUT"
