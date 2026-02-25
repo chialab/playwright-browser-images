@@ -23,18 +23,16 @@ jobs:
         id: check-version
         shell: bash
         env:
+          GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/chialab/playwright-browser
         run: |
           version="$(curl -s https://registry.npmjs.org/playwright/latest | jq -r .version)"
-          response_code="$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            -H "Accept: application/vnd.oci.image.manifest.v1+json" \
-            "https://ghcr.io/v2/chialab/playwright-browser/manifests/chromium-${version}")"
-
-          if [[ "${response_code}" != "200" ]]; then
-            echo "version=${version}" >> "$GITHUB_OUTPUT"
-          else
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin
+          if docker manifest inspect "$IMAGE:${version}" >/dev/null 2>&1; then
             echo "version=" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${version}" >> "$GITHUB_OUTPUT"
           fi
 
   publish:
