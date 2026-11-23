@@ -2,6 +2,12 @@ name: Publish Playwright Browser Images
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Playwright version to (re)build, e.g. 1.65.1. Empty for the latest version, if not published yet."
+        type: string
+        required: false
+        default: ""
   schedule:
     - cron: "17 */6 * * *"
 
@@ -28,7 +34,12 @@ jobs:
           GITHUB_USERNAME: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE: ghcr.io/chialab/playwright-browser
+          REQUESTED_VERSION: ${{ inputs.version }}
         run: |
+          if [ -n "$REQUESTED_VERSION" ]; then
+            echo "version=${REQUESTED_VERSION}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           version="$(curl -s https://registry.npmjs.org/playwright/latest | jq -r .version)"
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin
           if docker manifest inspect "$IMAGE:chromium-${version}" >/dev/null 2>&1; then
@@ -54,6 +65,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -70,6 +84,7 @@ jobs:
           context: .
           file: Dockerfile
           push: true
+          platforms: linux/amd64,linux/arm64
           build-args: |
             PLAYWRIGHT_VERSION=${{ env.PLAYWRIGHT_VERSION }}
             PLAYWRIGHT_BROWSER=${{ matrix.browser }}

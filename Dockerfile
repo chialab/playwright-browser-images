@@ -3,15 +3,26 @@
 # - Installs playwright-core
 # - Extracts the list of native apt dependencies for the target browser
 # - Downloads the browser binaries
+# It runs on the build machine's architecture and downloads the binaries for
+# the target architecture, so multi-platform builds do not emulate Node.
 ###############################################################################
-FROM node:24-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS builder
 
 ARG PLAYWRIGHT_VERSION
 ARG PLAYWRIGHT_BROWSER=chromium
-# Must match the final stage's OS. ubuntu:noble = 24.04
-ARG PLAYWRIGHT_PLATFORM=ubuntu24.04-x64
+# Set by BuildKit: amd64 or arm64.
+ARG TARGETARCH
+# Must match the final stage's OS (ubuntu:noble = 24.04) and architecture.
+# Defaults to ubuntu24.04-x64 or ubuntu24.04-arm64 from TARGETARCH.
+ARG PLAYWRIGHT_PLATFORM
 
 WORKDIR /build
+
+RUN if [ -n "${PLAYWRIGHT_PLATFORM}" ]; then platform="${PLAYWRIGHT_PLATFORM}"; \
+    elif [ "${TARGETARCH}" = "arm64" ]; then platform="ubuntu24.04-arm64"; \
+    else platform="ubuntu24.04-x64"; fi \
+    && echo "${platform}" > /platform.txt \
+    && echo "=== Playwright platform: ${platform} ==="
 
 # Install playwright-core (no browsers yet, just the library)
 RUN npm init -y && npm i "playwright-core@${PLAYWRIGHT_VERSION}"
@@ -20,13 +31,14 @@ RUN npm init -y && npm i "playwright-core@${PLAYWRIGHT_VERSION}"
 COPY get-deps.js .
 
 # 1) Extract native dependencies list
-RUN node get-deps.js "${PLAYWRIGHT_PLATFORM}" "${PLAYWRIGHT_BROWSER}" > /deps.txt \
+RUN node get-deps.js "$(cat /platform.txt)" "${PLAYWRIGHT_BROWSER}" > /deps.txt \
     && echo "=== Native dependencies ===" && cat /deps.txt
 
 # 2) Download browser binaries (needs a full playwright install for the download)
-#    We install the full playwright package just to run `playwright install`
+#    We install the full playwright package just to run `playwright install`.
+#    The platform override makes it download the target architecture's binaries.
 RUN npm i "playwright@${PLAYWRIGHT_VERSION}" \
-    && npx --no -- playwright install "${PLAYWRIGHT_BROWSER}" \
+    && PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="$(cat /platform.txt)" npx --no -- playwright install "${PLAYWRIGHT_BROWSER}" \
     && cp -a /root/.cache/ms-playwright /ms-playwright \
     && chmod -R 777 /ms-playwright
 
